@@ -1,34 +1,35 @@
-import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
+
+async function fetchAthletes() {
+  const response = await fetch('/api/athletes')
+  if (!response.ok) {
+    throw new Error('Failed to fetch athletes')
+  }
+  return response.json()
+}
 
 function AthleteList() {
-  const [athletes, setAthletes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const { data: athletes, isLoading, isError, error } = useQuery({
+    queryKey: ['athletes'],
+    queryFn: fetchAthletes,
+  })
 
-  useEffect(() => {
-    fetch('/api/athletes')
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Failed to fetch athletes')
-        }
-        return response.json()
-      })
-      .then(data => {
-        setAthletes(data)
-        setLoading(false)
-      })
-      .catch(err => {
-        setError(err.message)
-        setLoading(false)
-      })
-  }, [])
-
-  if (loading) {
-    return <p className="text-gray-500">Loading athletes...</p>
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-3 text-gray-500">Loading athletes...</span>
+      </div>
+    )
   }
 
-  if (error) {
-    return <p className="text-red-500">Error: {error}</p>
+  if (isError) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p className="text-red-600 font-medium">Error loading athletes</p>
+        <p className="text-red-500 text-sm">{error.message}</p>
+      </div>
+    )
   }
 
   return (
@@ -43,7 +44,7 @@ function AthleteList() {
         </thead>
         <tbody>
           {athletes.map((athlete, index) => (
-            <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+            <tr key={athlete.id} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
               <td className="px-4 py-3">{athlete.name}</td>
               <td className="px-4 py-3 text-center">{athlete.grade}</td>
               <td className="px-4 py-3 text-right">{athlete.personalRecord}</td>
