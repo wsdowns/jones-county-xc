@@ -1,0 +1,125 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0\fswiss Helvetica;}{\f1\fmodern Courier New;}}
+{\colortbl;\red0\green0\blue0;\red0\green0\blue255;\red100\green100\blue100;}
+
+\f0\fs28\b API Request Flow: GET /api/athletes\b0\fs24\par
+\par
+This document explains what happens when the frontend calls GET /api/athletes.\par
+\par
+
+\fs26\b Overview\b0\fs24\par
+\par
+Frontend (React) \u8594 nginx (reverse proxy) \u8594 Go Backend (Gin) \u8594 JSON Response\par
+\par
+
+\fs26\b Step-by-Step Flow\b0\fs24\par
+\par
+
+\fs24\b 1. Frontend Makes Request\b0\par
+\par
+\b File:\b  frontend/src/components/AthleteList.jsx\par
+\par
+\f1\fs20
+useEffect(() => \{\par
+  fetch('/api/athletes')\par
+    .then(response => response.json())\par
+    .then(data => setAthletes(data))\par
+\}, [])\par
+\f0\fs24\par
+\bullet  React component mounts\par
+\bullet  fetch('/api/athletes') sends HTTP GET request\par
+\bullet  Request goes to the same origin (https://laserscribed.com)\par
+\par
+
+\b 2. nginx Receives Request\b0\par
+\par
+\b Server:\b  Lightsail (3.147.83.42)\par
+\b Config:\b  /etc/nginx/sites-available/default\par
+\par
+\f1\fs20
+location /api \{\par
+    proxy_pass http://127.0.0.1:8080;\par
+    proxy_http_version 1.1;\par
+    proxy_set_header Host $host;\par
+    proxy_set_header X-Real-IP $remote_addr;\par
+\}\par
+\f0\fs24\par
+\bullet  nginx listens on port 443 (HTTPS)\par
+\bullet  Matches /api location block\par
+\bullet  Proxies request to Go backend on localhost:8080\par
+\par
+
+\b 3. Go Backend Handles Request\b0\par
+\par
+\b File:\b  backend/main.go\par
+\par
+\b Route Registration:\b\par
+\f1\fs20
+func main() \{\par
+    r := gin.Default()\par
+    r.GET("/api/athletes", athletesHandler)\par
+    r.Run(":8080")\par
+\}\par
+\f0\fs24\par
+\bullet  Gin router matches GET /api/athletes\par
+\bullet  Calls athletesHandler function\par
+\par
+\b Handler Function:\b\par
+\f1\fs20
+func athletesHandler(c *gin.Context) \{\par
+    c.JSON(http.StatusOK, athletes)\par
+\}\par
+\f0\fs24\par
+\bullet  c is the Gin context (contains request/response)\par
+\bullet  c.JSON() serializes athletes slice to JSON\par
+\bullet  Sets Content-Type: application/json\par
+\bullet  Returns HTTP 200 status\par
+\par
+\b Data Source:\b\par
+\f1\fs20
+var athletes = []Athlete\{\par
+    \{ID: 1, Name: "Marcus Johnson", Grade: 12, PersonalRecord: "16:42"\},\par
+    \{ID: 2, Name: "Emily Chen", Grade: 11, PersonalRecord: "19:15"\},\par
+    \{ID: 3, Name: "David Williams", Grade: 10, PersonalRecord: "17:28"\},\par
+    \{ID: 4, Name: "Sarah Martinez", Grade: 12, PersonalRecord: "20:03"\},\par
+    \{ID: 5, Name: "Jake Thompson", Grade: 9, PersonalRecord: "18:55"\},\par
+\}\par
+\f0\fs24\par
+\bullet  Currently hardcoded in memory\par
+\bullet  Will be replaced with database queries later\par
+\par
+
+\b 4. Response Returns to Frontend\b0\par
+\par
+\b JSON Response:\b\par
+\f1\fs20
+[\par
+  \{"id": 1, "name": "Marcus Johnson", "grade": 12, "personalRecord": "16:42"\},\par
+  \{"id": 2, "name": "Emily Chen", "grade": 11, "personalRecord": "19:15"\},\par
+  ...\par
+]\par
+\f0\fs24\par
+\bullet  Go backend sends JSON to nginx\par
+\bullet  nginx forwards to browser\par
+\bullet  React receives response in .then(data => ...)\par
+\bullet  Component updates state with setAthletes(data)\par
+\bullet  React re-renders to display the athlete list\par
+\par
+
+\fs26\b Key Files Summary\b0\fs24\par
+\par
+\b Frontend:\b  frontend/src/components/AthleteList.jsx - Makes API call, displays data\par
+\b Proxy:\b  /etc/nginx/sites-available/default - Routes /api to Go backend\par
+\b Backend:\b  backend/main.go - Handles request, returns JSON\par
+\par
+
+\fs26\b Testing the Endpoint\b0\fs24\par
+\par
+\f1\fs20
+# From terminal\par
+curl https://laserscribed.com/api/athletes\par
+\par
+# Or locally (with backend running)\par
+curl http://localhost:8080/api/athletes\par
+\f0\fs24\par
+}
