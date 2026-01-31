@@ -7,8 +7,8 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/api/health", healthHandler)
-	http.HandleFunc("/api/hello", helloHandler)
+	http.HandleFunc("/health", healthHandler)
+	http.HandleFunc("/hello", helloHandler)
 
 	log.Println("Backend server starting on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
