@@ -1,9 +1,9 @@
 package main
 
 import (
-	"encoding/json"
-	"log"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Athlete struct {
@@ -21,25 +21,23 @@ var athletes = []Athlete{
 }
 
 func main() {
-	http.HandleFunc("/health", healthHandler)
-	http.HandleFunc("/hello", helloHandler)
-	http.HandleFunc("/api/athletes", athletesHandler)
+	r := gin.Default()
 
-	log.Println("Backend server starting on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	r.GET("/health", healthHandler)
+	r.GET("/hello", helloHandler)
+	r.GET("/api/athletes", athletesHandler)
+
+	r.Run(":8080")
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+func healthHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-func helloHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "Hello from Jones County XC!"})
+func helloHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"message": "Hello from Jones County XC!"})
 }
 
-func athletesHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(athletes)
+func athletesHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, athletes)
 }
