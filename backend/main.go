@@ -1,66 +1,46 @@
 package main
 
 import (
+	"database/sql"
+	"log"
 	"net/http"
+	"strconv"
+
+	"jones-county-xc/backend/db"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/go-sql-driver/mysql"
 )
 
-type Athlete struct {
-	ID             int    `json:"id"`
-	Name           string `json:"name"`
-	Grade          int    `json:"grade"`
-	PersonalRecord string `json:"personalRecord"`
-}
-
-type Meet struct {
-	ID       int    `json:"id"`
-	Name     string `json:"name"`
-	Date     string `json:"date"`
-	Location string `json:"location"`
-}
-
-type Result struct {
-	ID        int    `json:"id"`
-	AthleteID int    `json:"athleteId"`
-	MeetID    int    `json:"meetId"`
-	Time      string `json:"time"`
-	Place     int    `json:"place"`
-}
-
-var athletes = []Athlete{
-	{ID: 1, Name: "Marcus Johnson", Grade: 12, PersonalRecord: "16:42"},
-	{ID: 2, Name: "Emily Chen", Grade: 11, PersonalRecord: "19:15"},
-	{ID: 3, Name: "David Williams", Grade: 10, PersonalRecord: "17:28"},
-	{ID: 4, Name: "Sarah Martinez", Grade: 12, PersonalRecord: "20:03"},
-	{ID: 5, Name: "Jake Thompson", Grade: 9, PersonalRecord: "18:55"},
-}
-
-var meets = []Meet{
-	{ID: 1, Name: "Jones County Invitational", Date: "2026-02-15", Location: "Gray, GA"},
-	{ID: 2, Name: "Region 4-AAAAA Championship", Date: "2026-02-22", Location: "Macon, GA"},
-	{ID: 3, Name: "State Qualifier", Date: "2026-03-01", Location: "Atlanta, GA"},
-	{ID: 4, Name: "GHSA State Championship", Date: "2026-03-08", Location: "Carrollton, GA"},
-}
-
-var results = []Result{
-	{ID: 1, AthleteID: 1, MeetID: 1, Time: "16:58", Place: 1},
-	{ID: 2, AthleteID: 3, MeetID: 1, Time: "17:45", Place: 2},
-	{ID: 3, AthleteID: 5, MeetID: 1, Time: "19:12", Place: 3},
-	{ID: 4, AthleteID: 2, MeetID: 1, Time: "19:32", Place: 4},
-	{ID: 5, AthleteID: 4, MeetID: 1, Time: "20:15", Place: 5},
-	{ID: 6, AthleteID: 1, MeetID: 2, Time: "16:42", Place: 1},
-	{ID: 7, AthleteID: 3, MeetID: 2, Time: "17:28", Place: 2},
-}
+var queries *db.Queries
 
 func main() {
+	// Connect to MySQL
+	conn, err := sql.Open("mysql", "root@tcp(127.0.0.1:3306)/jones_county_xc?parseTime=true")
+	if err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
+	defer conn.Close()
+
+	// Verify connection
+	if err := conn.Ping(); err != nil {
+		log.Fatal("Failed to ping database:", err)
+	}
+	log.Println("Connected to MySQL database")
+
+	// Initialize queries
+	queries = db.New(conn)
+
+	// Setup router
 	r := gin.Default()
 
 	r.GET("/health", healthHandler)
-	r.GET("/hello", helloHandler)
-	r.GET("/api/athletes", athletesHandler)
-	r.GET("/api/meets", meetsHandler)
-	r.GET("/api/results", resultsHandler)
+	r.GET("/api/athletes", getAthletesHandler)
+	r.GET("/api/athletes/:id", getAthleteByIDHandler)
+	r.GET("/api/meets", getMeetsHandler)
+	r.GET("/api/meets/:id/results", getResultsByMeetHandler)
+	r.POST("/api/results", createResultHandler)
+	r.GET("/api/results/top10", getTopTenFastestHandler)
 
 	r.Run(":8080")
 }
@@ -69,18 +49,155 @@ func healthHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-func helloHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "Hello from Jones County XC!"})
+func getAthletesHandler(c *gin.Context) {
+	athletes, err := queries.GetAllAthletes(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Convert to JSON-friendly format
+	result := make([]gin.H, len(athletes))
+	for i, a := range athletes {
+		result[i] = gin.H{
+			"id":             a.ID,
+			"name":           a.Name,
+			"grade":          a.Grade,
+			"personalRecord": a.PersonalRecord.String,
+			"events":         a.Events.String,
+		}
+	}
+	c.JSON(http.StatusOK, result)
 }
 
-func athletesHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, athletes)
+func getAthleteByIDHandler(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid athlete ID"})
+		return
+	}
+
+	athlete, err := queries.GetAthleteByID(c.Request.Context(), int32(id))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Athlete not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":             athlete.ID,
+		"name":           athlete.Name,
+		"grade":          athlete.Grade,
+		"personalRecord": athlete.PersonalRecord.String,
+		"events":         athlete.Events.String,
+	})
 }
 
-func meetsHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, meets)
+func getMeetsHandler(c *gin.Context) {
+	meets, err := queries.GetAllMeets(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	result := make([]gin.H, len(meets))
+	for i, m := range meets {
+		result[i] = gin.H{
+			"id":          m.ID,
+			"name":        m.Name,
+			"date":        m.Date.Format("2006-01-02"),
+			"location":    m.Location.String,
+			"description": m.Description.String,
+		}
+	}
+	c.JSON(http.StatusOK, result)
 }
 
-func resultsHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, results)
+func getResultsByMeetHandler(c *gin.Context) {
+	meetID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid meet ID"})
+		return
+	}
+
+	results, err := queries.GetMeetResults(c.Request.Context(), int32(meetID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := make([]gin.H, len(results))
+	for i, r := range results {
+		response[i] = gin.H{
+			"id":          r.ID,
+			"athleteId":   r.AthleteID,
+			"athleteName": r.AthleteName,
+			"meetId":      r.MeetID,
+			"time":        r.Time,
+			"place":       r.Place.Int32,
+		}
+	}
+	c.JSON(http.StatusOK, response)
+}
+
+type CreateResultRequest struct {
+	AthleteID int32  `json:"athleteId" binding:"required"`
+	MeetID    int32  `json:"meetId" binding:"required"`
+	Time      string `json:"time" binding:"required"`
+	Place     int32  `json:"place"`
+}
+
+func createResultHandler(c *gin.Context) {
+	var req CreateResultRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := queries.CreateResult(c.Request.Context(), db.CreateResultParams{
+		AthleteID: req.AthleteID,
+		MeetID:    req.MeetID,
+		Time:      req.Time,
+		Place:     sql.NullInt32{Int32: req.Place, Valid: req.Place > 0},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	id, _ := result.LastInsertId()
+	c.JSON(http.StatusCreated, gin.H{
+		"id":        id,
+		"athleteId": req.AthleteID,
+		"meetId":    req.MeetID,
+		"time":      req.Time,
+		"place":     req.Place,
+	})
+}
+
+func getTopTenFastestHandler(c *gin.Context) {
+	results, err := queries.GetTopTenFastestTimes(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := make([]gin.H, len(results))
+	for i, r := range results {
+		response[i] = gin.H{
+			"id":           r.ID,
+			"time":         r.Time,
+			"place":        r.Place.Int32,
+			"athleteId":    r.AthleteID,
+			"athleteName":  r.AthleteName,
+			"athleteGrade": r.AthleteGrade,
+			"meetId":       r.MeetID,
+			"meetName":     r.MeetName,
+			"meetDate":     r.MeetDate.Format("2006-01-02"),
+		}
+	}
+	c.JSON(http.StatusOK, response)
 }
