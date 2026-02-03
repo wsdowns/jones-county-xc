@@ -16,7 +16,7 @@ var queries *db.Queries
 
 func main() {
 	// Connect to MySQL
-	conn, err := sql.Open("mysql", "root@tcp(127.0.0.1:3306)/jones_county_xc?parseTime=true")
+	conn, err := sql.Open("mysql", "xcapp:xcapp123@tcp(127.0.0.1:3306)/jones_county_xc?parseTime=true")
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
