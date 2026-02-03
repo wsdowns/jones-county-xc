@@ -15,3 +15,7 @@ backend/server
 # IDE
 .vscode/
 .idea/
+
+# Build artifacts
+backend/jones-county-xc-server
+frontend/dist.tar.gz
