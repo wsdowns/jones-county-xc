@@ -127,6 +127,12 @@ async function fetchMeets() {
   return response.json()
 }
 
+async function fetchAllResults() {
+  const response = await fetch('/api/results/all')
+  if (!response.ok) throw new Error('Failed to fetch results')
+  return response.json()
+}
+
 // Generic Modal Component
 function Modal({ title, onClose, children }) {
   return (
@@ -604,6 +610,35 @@ function DeleteConfirmModal({ title, message, onConfirm, onClose, isLoading }) {
   )
 }
 
+function ResultList({ onEdit, onDelete }) {
+  const { data: results = [], isLoading } = useQuery({
+    queryKey: ['allResults'],
+    queryFn: fetchAllResults,
+  })
+
+  if (isLoading) return <div className="text-slate-400">Loading...</div>
+
+  if (results.length === 0) return <div className="text-slate-400">No results yet.</div>
+
+  return (
+    <div className="space-y-2 max-h-60 overflow-y-auto">
+      {results.map(r => (
+        <div key={r.id} className="flex items-center justify-between bg-slate-700/50 rounded-lg p-3">
+          <div className="flex-1 min-w-0">
+            <span className="font-medium text-white">{r.athleteName}</span>
+            <span className="text-greyhound-gold text-sm ml-2">{r.time}</span>
+            <div className="text-slate-400 text-xs truncate">{r.meetName} • {r.eventName || '5K'}</div>
+          </div>
+          <div className="flex gap-2 ml-2">
+            <button onClick={() => onEdit(r)} className="p-1 text-slate-400 hover:text-white"><EditIcon /></button>
+            <button onClick={() => onDelete(r)} className="p-1 text-red-400 hover:text-red-300"><TrashIcon /></button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // =====================
 // MAIN ADMIN PAGE
 // =====================
@@ -658,15 +693,15 @@ function AdminPage({ user, onLogout }) {
   // Mutations for Results
   const createResult = useMutation({
     mutationFn: data => fetch('/api/results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-    onSuccess: () => { queryClient.invalidateQueries(['results']); setModal({ type: null }) }
+    onSuccess: () => { queryClient.invalidateQueries(['results']); queryClient.invalidateQueries(['allResults']); setModal({ type: null }) }
   })
   const updateResult = useMutation({
     mutationFn: ({ id, ...data }) => fetch(`/api/results/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-    onSuccess: () => { queryClient.invalidateQueries(['results']); setModal({ type: null }) }
+    onSuccess: () => { queryClient.invalidateQueries(['results']); queryClient.invalidateQueries(['allResults']); setModal({ type: null }) }
   })
   const deleteResult = useMutation({
     mutationFn: id => fetch(`/api/results/${id}`, { method: 'DELETE' }),
-    onSuccess: () => { queryClient.invalidateQueries(['results']); setModal({ type: null }) }
+    onSuccess: () => { queryClient.invalidateQueries(['results']); queryClient.invalidateQueries(['allResults']); setModal({ type: null }) }
   })
 
   function toggleSection(section) {
@@ -734,7 +769,10 @@ function AdminPage({ user, onLogout }) {
           <div className="flex gap-2 mb-4">
             <ActionButton icon={PlusIcon} label="Add" variant="success" onClick={() => setModal({ type: 'addResult' })} />
           </div>
-          <p className="text-slate-400 text-sm">Results are managed per athlete or meet. Use the View Details feature on the main pages to see and manage results.</p>
+          <ResultList
+            onEdit={r => setModal({ type: 'editResult', data: r })}
+            onDelete={r => setModal({ type: 'deleteResult', data: r })}
+          />
         </AdminSection>
 
         {/* Event Types */}
@@ -806,6 +844,16 @@ function AdminPage({ user, onLogout }) {
       {modal.type === 'addResult' && (
         <Modal title="Add Result" onClose={() => setModal({ type: null })}>
           <ResultForm onSubmit={createResult.mutate} onClose={() => setModal({ type: null })} isLoading={createResult.isPending} />
+        </Modal>
+      )}
+      {modal.type === 'editResult' && (
+        <Modal title="Edit Result" onClose={() => setModal({ type: null })}>
+          <ResultForm result={modal.data} onSubmit={data => updateResult.mutate({ id: modal.data.id, ...data })} onClose={() => setModal({ type: null })} isLoading={updateResult.isPending} />
+        </Modal>
+      )}
+      {modal.type === 'deleteResult' && (
+        <Modal title="Delete Result" onClose={() => setModal({ type: null })}>
+          <DeleteConfirmModal message={`Are you sure you want to delete this result for ${modal.data.athleteName}?`} onConfirm={() => deleteResult.mutate(modal.data.id)} onClose={() => setModal({ type: null })} isLoading={deleteResult.isPending} />
         </Modal>
       )}
     </main>

@@ -63,6 +63,7 @@ func main() {
 
 	// Results CRUD
 	r.GET("/api/results", getResultsHandler)
+	r.GET("/api/results/all", getAllResultsHandler)
 	r.GET("/api/results/top10", getTopTenFastestHandler)
 	r.POST("/api/results", createResultHandler)
 	r.PUT("/api/results/:id", updateResultHandler)
@@ -593,6 +594,30 @@ func getResultsHandler(c *gin.Context) {
 		})
 	}
 
+	c.JSON(http.StatusOK, response)
+}
+
+func getAllResultsHandler(c *gin.Context) {
+	results, err := queries.GetAllResults(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := make([]gin.H, len(results))
+	for i, r := range results {
+		response[i] = gin.H{
+			"id":          r.ID,
+			"athleteId":   r.AthleteID,
+			"athleteName": r.AthleteName,
+			"meetId":      r.MeetID,
+			"meetName":    r.MeetName,
+			"eventTypeId": r.EventTypeID.Int32,
+			"eventName":   r.EventName.String,
+			"time":        r.Time,
+			"place":       r.Place.Int32,
+		}
+	}
 	c.JSON(http.StatusOK, response)
 }
 
