@@ -19,3 +19,4 @@ backend/server
 # Build artifacts
 backend/jones-county-xc-server
 frontend/dist.tar.gz
+deploy.tar.gz
