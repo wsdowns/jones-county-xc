@@ -18,6 +18,7 @@ SELECT
     r.id,
     r.athlete_id,
     r.meet_id,
+    r.event,
     r.time,
     r.place,
     r.created_at,
@@ -47,3 +48,19 @@ JOIN athletes a ON r.athlete_id = a.id
 JOIN meets m ON r.meet_id = m.id
 ORDER BY r.time ASC
 LIMIT 10;
+
+-- name: GetAthleteResults :many
+SELECT
+    r.id,
+    r.athlete_id,
+    r.meet_id,
+    r.event,
+    r.time,
+    r.place,
+    r.created_at,
+    m.name as meet_name,
+    m.date as meet_date
+FROM results r
+JOIN meets m ON r.meet_id = m.id
+WHERE r.athlete_id = ?
+ORDER BY m.date DESC;

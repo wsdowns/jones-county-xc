@@ -33,6 +33,7 @@ type Result struct {
 	ID        int32
 	AthleteID int32
 	MeetID    int32
+	Event     sql.NullString
 	Time      string
 	Place     sql.NullInt32
 	CreatedAt sql.NullTime

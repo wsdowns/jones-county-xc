@@ -32,12 +32,13 @@ CREATE TABLE results (
     id INT AUTO_INCREMENT PRIMARY KEY,
     athlete_id INT NOT NULL,
     meet_id INT NOT NULL,
+    event VARCHAR(20) DEFAULT '5K',
     time VARCHAR(10) NOT NULL,
     place INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (athlete_id) REFERENCES athletes(id) ON DELETE CASCADE,
     FOREIGN KEY (meet_id) REFERENCES meets(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_athlete_meet (athlete_id, meet_id)
+    UNIQUE KEY unique_athlete_meet_event (athlete_id, meet_id, event)
 );
 
 -- Indexes for faster queries

@@ -40,7 +40,9 @@ func main() {
 	r.GET("/api/athletes", getAthletesHandler)
 	r.POST("/api/athletes", createAthleteHandler)
 	r.GET("/api/athletes/:id", getAthleteByIDHandler)
+	r.GET("/api/athletes/:id/results", getAthleteResultsHandler)
 	r.GET("/api/meets", getMeetsHandler)
+	r.POST("/api/meets", createMeetHandler)
 	r.GET("/api/meets/:id/results", getResultsByMeetHandler)
 	r.GET("/api/results", getResultsHandler)
 	r.POST("/api/results", createResultHandler)
@@ -101,6 +103,35 @@ func getAthleteByIDHandler(c *gin.Context) {
 	})
 }
 
+func getAthleteResultsHandler(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid athlete ID"})
+		return
+	}
+
+	results, err := queries.GetAthleteResults(c.Request.Context(), int32(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := make([]gin.H, len(results))
+	for i, r := range results {
+		response[i] = gin.H{
+			"id":       r.ID,
+			"athleteId": r.AthleteID,
+			"meetId":   r.MeetID,
+			"event":    r.Event.String,
+			"time":     r.Time,
+			"place":    r.Place.Int32,
+			"meetName": r.MeetName,
+			"meetDate": r.MeetDate.Format("January 2, 2006"),
+		}
+	}
+	c.JSON(http.StatusOK, response)
+}
+
 func getMeetsHandler(c *gin.Context) {
 	meets, err := queries.GetAllMeets(c.Request.Context())
 	if err != nil {
@@ -119,6 +150,38 @@ func getMeetsHandler(c *gin.Context) {
 		}
 	}
 	c.JSON(http.StatusOK, result)
+}
+
+type CreateMeetRequest struct {
+	Name        string `json:"name" binding:"required"`
+	Date        string `json:"date" binding:"required"`
+	Location    string `json:"location"`
+	Description string `json:"description"`
+}
+
+func createMeetHandler(c *gin.Context) {
+	var req CreateMeetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := dbConn.ExecContext(c.Request.Context(),
+		"INSERT INTO meets (name, date, location, description) VALUES (?, ?, ?, ?)",
+		req.Name, req.Date, req.Location, req.Description)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	id, _ := result.LastInsertId()
+	c.JSON(http.StatusCreated, gin.H{
+		"id":          id,
+		"name":        req.Name,
+		"date":        req.Date,
+		"location":    req.Location,
+		"description": req.Description,
+	})
 }
 
 func getResultsHandler(c *gin.Context) {
@@ -199,6 +262,7 @@ func getResultsByMeetHandler(c *gin.Context) {
 			"athleteId":   r.AthleteID,
 			"athleteName": r.AthleteName,
 			"meetId":      r.MeetID,
+			"event":       r.Event.String,
 			"time":        r.Time,
 			"place":       r.Place.Int32,
 		}
@@ -241,6 +305,7 @@ func createAthleteHandler(c *gin.Context) {
 type CreateResultRequest struct {
 	AthleteID int32  `json:"athleteId" binding:"required"`
 	MeetID    int32  `json:"meetId" binding:"required"`
+	Event     string `json:"event" binding:"required"`
 	Time      string `json:"time" binding:"required"`
 	Place     int32  `json:"place"`
 }
@@ -252,12 +317,9 @@ func createResultHandler(c *gin.Context) {
 		return
 	}
 
-	result, err := queries.CreateResult(c.Request.Context(), db.CreateResultParams{
-		AthleteID: req.AthleteID,
-		MeetID:    req.MeetID,
-		Time:      req.Time,
-		Place:     sql.NullInt32{Int32: req.Place, Valid: req.Place > 0},
-	})
+	result, err := dbConn.ExecContext(c.Request.Context(),
+		"INSERT INTO results (athlete_id, meet_id, event, time, place) VALUES (?, ?, ?, ?, ?)",
+		req.AthleteID, req.MeetID, req.Event, req.Time, req.Place)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -268,6 +330,7 @@ func createResultHandler(c *gin.Context) {
 		"id":        id,
 		"athleteId": req.AthleteID,
 		"meetId":    req.MeetID,
+		"event":     req.Event,
 		"time":      req.Time,
 		"place":     req.Place,
 	})

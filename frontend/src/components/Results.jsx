@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Button from './ui/Button'
 
@@ -5,6 +6,14 @@ async function fetchResults() {
   const response = await fetch('/api/results')
   if (!response.ok) {
     throw new Error('Failed to fetch results')
+  }
+  return response.json()
+}
+
+async function fetchMeetResults(meetId) {
+  const response = await fetch(`/api/meets/${meetId}/results`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch meet results')
   }
   return response.json()
 }
@@ -29,7 +38,122 @@ function TrophyIcon() {
   )
 }
 
-function ResultCard({ result }) {
+function CloseIcon() {
+  return (
+    <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  )
+}
+
+function ResultsModal({ result, onClose }) {
+  const { data: fullResults, isLoading, isError } = useQuery({
+    queryKey: ['meetResults', result.id],
+    queryFn: () => fetchMeetResults(result.id),
+  })
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Modal */}
+      <div
+        className="relative bg-slate-800 border border-slate-700 rounded-xl max-w-lg w-full max-h-[80vh] overflow-hidden shadow-2xl"
+        role="dialog"
+        aria-labelledby="modal-title"
+        aria-modal="true"
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between p-6 border-b border-slate-700">
+          <div>
+            <h2 id="modal-title" className="text-2xl font-bold text-white">{result.meetName}</h2>
+            <p className="text-slate-300 mt-1">{result.date}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white transition-colors"
+            aria-label="Close modal"
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        {/* Team placement */}
+        {result.placement && (
+          <div className="px-6 py-4 bg-slate-700/50 border-b border-slate-700">
+            <div className="flex items-center gap-2">
+              <TrophyIcon />
+              <span className="text-greyhound-gold font-bold">Team Placement: {result.placement}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Full Results */}
+        <div className="p-6 overflow-y-auto max-h-[50vh]">
+          <h3 className="text-lg font-bold text-white mb-4">All Results</h3>
+
+          {isLoading && (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-greyhound-green"></div>
+              <span className="ml-3 text-slate-300">Loading results...</span>
+            </div>
+          )}
+
+          {isError && (
+            <p className="text-red-400 text-center py-4">Failed to load results</p>
+          )}
+
+          {fullResults && fullResults.length === 0 && (
+            <p className="text-slate-400 text-center py-4">No results available</p>
+          )}
+
+          {fullResults && fullResults.length > 0 && (
+            <div className="space-y-3">
+              {fullResults.map((r) => (
+                <div
+                  key={r.id}
+                  className="bg-slate-700/50 rounded-lg p-4 border border-slate-600 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    {r.place > 0 && (
+                      <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        r.place === 1 ? 'bg-yellow-500 text-black' :
+                        r.place === 2 ? 'bg-slate-400 text-black' :
+                        r.place === 3 ? 'bg-amber-700 text-white' :
+                        'bg-slate-600 text-white'
+                      }`}>
+                        {r.place}
+                      </span>
+                    )}
+                    <div>
+                      <p className="font-semibold text-white">{r.athleteName}</p>
+                      <p className="text-sm text-slate-400">{r.event || '5K'}</p>
+                    </div>
+                  </div>
+                  <p className="text-xl font-bold text-greyhound-green">{r.time}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-700">
+          <Button onClick={onClose} className="w-full">
+            Close
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ResultCard({ result, onViewDetails }) {
   return (
     <article
       aria-labelledby={`result-${result.id}-title`}
@@ -69,7 +193,7 @@ function ResultCard({ result }) {
       )}
 
       <div className="mt-4 pt-4 border-t border-slate-700">
-        <Button variant="outline" size="sm" className="w-full">
+        <Button variant="outline" size="sm" className="w-full" onClick={() => onViewDetails(result)}>
           View Full Results
         </Button>
       </div>
@@ -78,6 +202,7 @@ function ResultCard({ result }) {
 }
 
 function Results() {
+  const [selectedResult, setSelectedResult] = useState(null)
   const { data: results, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['results'],
     queryFn: fetchResults,
@@ -157,10 +282,18 @@ function Results() {
             className="animate-fade-in-up"
             style={{ animationDelay: `${index * 100}ms` }}
           >
-            <ResultCard result={result} />
+            <ResultCard result={result} onViewDetails={setSelectedResult} />
           </div>
         ))}
       </div>
+
+      {/* Results Modal */}
+      {selectedResult && (
+        <ResultsModal
+          result={selectedResult}
+          onClose={() => setSelectedResult(null)}
+        />
+      )}
     </section>
   )
 }

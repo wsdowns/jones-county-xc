@@ -11,6 +11,14 @@ async function fetchAthletes() {
   return response.json()
 }
 
+async function fetchAthleteResults(athleteId) {
+  const response = await fetch(`/api/athletes/${athleteId}/results`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch athlete results')
+  }
+  return response.json()
+}
+
 function ClockIcon() {
   return (
     <svg
@@ -27,7 +35,120 @@ function ClockIcon() {
   )
 }
 
-function AthleteCard({ athlete }) {
+function CloseIcon() {
+  return (
+    <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  )
+}
+
+function AthleteDetailsModal({ athlete, onClose }) {
+  const { data: results, isLoading, isError } = useQuery({
+    queryKey: ['athleteResults', athlete.id],
+    queryFn: () => fetchAthleteResults(athlete.id),
+  })
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Modal */}
+      <div
+        className="relative bg-slate-800 border border-slate-700 rounded-xl max-w-lg w-full max-h-[80vh] overflow-hidden shadow-2xl"
+        role="dialog"
+        aria-labelledby="modal-title"
+        aria-modal="true"
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between p-6 border-b border-slate-700">
+          <div>
+            <h2 id="modal-title" className="text-2xl font-bold text-white">{athlete.name}</h2>
+            <p className="text-slate-300 mt-1">Grade {athlete.grade} • {athlete.events}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white transition-colors"
+            aria-label="Close modal"
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        {/* PR highlight */}
+        <div className="px-6 py-4 bg-slate-700/50 border-b border-slate-700">
+          <div className="flex items-center gap-3">
+            <ClockIcon />
+            <div>
+              <p className="text-sm text-slate-400">Personal Record</p>
+              <p className="text-2xl font-bold text-greyhound-gold">{athlete.personalRecord || 'N/A'}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Results */}
+        <div className="p-6 overflow-y-auto max-h-[40vh]">
+          <h3 className="text-lg font-bold text-white mb-4">Race Results</h3>
+
+          {isLoading && (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-greyhound-green"></div>
+              <span className="ml-3 text-slate-300">Loading results...</span>
+            </div>
+          )}
+
+          {isError && (
+            <p className="text-red-400 text-center py-4">Failed to load results</p>
+          )}
+
+          {results && results.length === 0 && (
+            <p className="text-slate-400 text-center py-4">No race results yet</p>
+          )}
+
+          {results && results.length > 0 && (
+            <div className="space-y-3">
+              {results.map((result) => (
+                <div
+                  key={result.id}
+                  className="bg-slate-700/50 rounded-lg p-4 border border-slate-600"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-white">{result.meetName}</p>
+                      <p className="text-sm text-slate-400">{result.meetDate} • {result.event || '5K'}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-bold text-greyhound-green">{result.time}</p>
+                      {result.place > 0 && (
+                        <p className="text-sm text-greyhound-gold">
+                          {result.place === 1 ? '1st' : result.place === 2 ? '2nd' : result.place === 3 ? '3rd' : `${result.place}th`} place
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-700">
+          <Button onClick={onClose} className="w-full">
+            Close
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AthleteCard({ athlete, onViewDetails }) {
   return (
     <article
       aria-labelledby={`athlete-${athlete.id}-name`}
@@ -51,7 +172,7 @@ function AthleteCard({ athlete }) {
         <ClockIcon />
         <span aria-label={`Personal record: ${athlete.personalRecord}`}>{athlete.personalRecord}</span>
       </div>
-      <Button variant="outline" size="sm" className="w-full">
+      <Button variant="outline" size="sm" className="w-full" onClick={() => onViewDetails(athlete)}>
         View Details
       </Button>
     </article>
@@ -60,6 +181,7 @@ function AthleteCard({ athlete }) {
 
 function AthleteList() {
   const [raceCategory, setRaceCategory] = useState('')
+  const [selectedAthlete, setSelectedAthlete] = useState(null)
 
   const { data: athletes, isLoading, isError, error } = useQuery({
     queryKey: ['athletes'],
@@ -131,10 +253,18 @@ function AthleteList() {
       >
         {filteredAthletes.map((athlete) => (
           <div role="listitem" key={athlete.id}>
-            <AthleteCard athlete={athlete} />
+            <AthleteCard athlete={athlete} onViewDetails={setSelectedAthlete} />
           </div>
         ))}
       </div>
+
+      {/* Athlete Details Modal */}
+      {selectedAthlete && (
+        <AthleteDetailsModal
+          athlete={selectedAthlete}
+          onClose={() => setSelectedAthlete(null)}
+        />
+      )}
     </section>
   )
 }
