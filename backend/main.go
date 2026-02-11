@@ -45,6 +45,7 @@ func main() {
 	r.GET("/api/results", getResultsHandler)
 	r.POST("/api/results", createResultHandler)
 	r.GET("/api/results/top10", getTopTenFastestHandler)
+	r.POST("/api/login", loginHandler)
 
 	r.Run(":8080")
 }
@@ -294,4 +295,38 @@ func getTopTenFastestHandler(c *gin.Context) {
 		}
 	}
 	c.JSON(http.StatusOK, response)
+}
+
+type LoginRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+func loginHandler(c *gin.Context) {
+	var req LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var id int
+	var username string
+	err := dbConn.QueryRowContext(c.Request.Context(),
+		"SELECT id, username FROM users WHERE username = ? AND password = ?",
+		req.Username, req.Password).Scan(&id, &username)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":  true,
+		"id":       id,
+		"username": username,
+	})
 }

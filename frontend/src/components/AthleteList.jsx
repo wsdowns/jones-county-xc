@@ -94,6 +94,10 @@ function AthleteList() {
     )
   }
 
+  const filteredAthletes = raceCategory
+    ? athletes.filter(a => a.events?.toLowerCase().includes(raceCategory.toLowerCase()))
+    : athletes
+
   return (
     <section aria-labelledby="athletes-heading" className="w-full">
       {/* Section Header */}
@@ -125,7 +129,7 @@ function AthleteList() {
         role="list"
         aria-label="Athletes roster"
       >
-        {athletes.map((athlete) => (
+        {filteredAthletes.map((athlete) => (
           <div role="listitem" key={athlete.id}>
             <AthleteCard athlete={athlete} />
           </div>

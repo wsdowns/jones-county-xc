@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 
 function MenuIcon() {
   return (
@@ -73,16 +74,16 @@ function SettingsIcon() {
 }
 
 const navItems = [
-  { name: 'Home', icon: HomeIcon, href: '#' },
-  { name: 'Athletes', icon: UsersIcon, href: '#athletes' },
-  { name: 'Meets', icon: CalendarIcon, href: '#meets' },
-  { name: 'Results', icon: TrophyIcon, href: '#results' },
-  { name: 'Settings', icon: SettingsIcon, href: '#settings' },
+  { name: 'Home', icon: HomeIcon, path: '/' },
+  { name: 'Athletes', icon: UsersIcon, path: '/athletes' },
+  { name: 'Meets', icon: CalendarIcon, path: '/meets' },
+  { name: 'Results', icon: TrophyIcon, path: '/results' },
+  { name: 'Administration', icon: SettingsIcon, path: '/admin' },
 ]
 
 function Sidebar() {
   const [isOpen, setIsOpen] = useState(false)
-  const [activeItem, setActiveItem] = useState('Home')
+  const location = useLocation()
   const sidebarRef = useRef(null)
   const menuButtonRef = useRef(null)
   const closeButtonRef = useRef(null)
@@ -198,26 +199,26 @@ function Sidebar() {
         <nav className="p-4" aria-label="Primary">
           <p id="menu-label" className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 px-3">Menu</p>
           <ul className="space-y-1" role="list" aria-labelledby="menu-label">
-            {navItems.map((item) => (
-              <li key={item.name}>
-                <a
-                  href={item.href}
-                  onClick={() => {
-                    setActiveItem(item.name)
-                    setIsOpen(false)
-                  }}
-                  aria-current={activeItem === item.name ? 'page' : undefined}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-greyhound-green focus:ring-inset ${
-                    activeItem === item.name
-                      ? 'bg-greyhound-green text-white shadow-lg shadow-greyhound-green/25'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
-                  }`}
-                >
-                  <item.icon />
-                  <span className="font-medium">{item.name}</span>
-                </a>
-              </li>
-            ))}
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path
+              return (
+                <li key={item.name}>
+                  <Link
+                    to={item.path}
+                    onClick={() => setIsOpen(false)}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-greyhound-green focus:ring-inset ${
+                      isActive
+                        ? 'bg-greyhound-green text-white shadow-lg shadow-greyhound-green/25'
+                        : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    <item.icon />
+                    <span className="font-medium">{item.name}</span>
+                  </Link>
+                </li>
+              )
+            })}
           </ul>
         </nav>
 

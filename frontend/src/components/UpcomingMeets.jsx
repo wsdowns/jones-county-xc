@@ -1,29 +1,12 @@
-const placeholderMeets = [
-  {
-    id: 1,
-    name: 'Jones County Invitational',
-    date: '2026-02-21',
-    location: 'Gray, GA',
-  },
-  {
-    id: 2,
-    name: 'Region 4-AAAAA Championship',
-    date: '2026-03-07',
-    location: 'Warner Robins, GA',
-  },
-  {
-    id: 3,
-    name: 'Peach State Classic',
-    date: '2026-03-14',
-    location: 'Macon, GA',
-  },
-  {
-    id: 4,
-    name: 'State Qualifier',
-    date: '2026-03-28',
-    location: 'Carrollton, GA',
-  },
-]
+import { useQuery } from '@tanstack/react-query'
+
+async function fetchMeets() {
+  const response = await fetch('/api/meets')
+  if (!response.ok) {
+    throw new Error('Failed to fetch meets')
+  }
+  return response.json()
+}
 
 function CalendarIcon() {
   return (
@@ -133,7 +116,38 @@ function MeetCard({ meet }) {
 }
 
 function UpcomingMeets() {
-  const meets = placeholderMeets
+  const { data: meets, isLoading, isError, error } = useQuery({
+    queryKey: ['meets'],
+    queryFn: fetchMeets,
+  })
+
+  if (isLoading) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center justify-center p-12"
+      >
+        <div
+          className="animate-spin rounded-full h-10 w-10 border-b-2 border-greyhound-green"
+          aria-hidden="true"
+        ></div>
+        <span className="ml-4 text-slate-300 font-medium">Loading meets...</span>
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div
+        role="alert"
+        className="bg-red-500/10 border border-red-500/50 rounded-xl p-6"
+      >
+        <p className="text-red-400 font-bold">Error loading meets</p>
+        <p className="text-red-300 text-sm">{error.message}</p>
+      </div>
+    )
+  }
 
   return (
     <section aria-labelledby="meets-heading" className="w-full">
