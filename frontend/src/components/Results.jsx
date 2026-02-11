@@ -201,8 +201,77 @@ function ResultCard({ result, onViewDetails }) {
   )
 }
 
+function AllResultsModal({ results, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        className="relative bg-slate-800 border border-slate-700 rounded-xl max-w-4xl w-full max-h-[85vh] overflow-hidden shadow-2xl"
+        role="dialog"
+        aria-labelledby="all-results-title"
+        aria-modal="true"
+      >
+        <div className="flex items-start justify-between p-6 border-b border-slate-700">
+          <div>
+            <h2 id="all-results-title" className="text-2xl font-bold text-white">All Season Results</h2>
+            <p className="text-slate-300 mt-1">{results.length} meets with results</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white transition-colors"
+            aria-label="Close modal"
+          >
+            <CloseIcon />
+          </button>
+        </div>
+        <div className="p-6 overflow-y-auto max-h-[65vh]">
+          <div className="space-y-6">
+            {results.map((result) => (
+              <div key={result.id} className="bg-slate-700/50 rounded-lg p-4 border border-slate-600">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="text-lg font-bold text-white">{result.meetName}</h3>
+                    <p className="text-sm text-slate-400">{result.date}</p>
+                  </div>
+                  {result.placement && (
+                    <div className="flex items-center gap-1 bg-greyhound-gold/20 text-greyhound-gold text-xs font-bold px-2 py-1 rounded-full">
+                      <TrophyIcon />
+                      <span>{result.placement}</span>
+                    </div>
+                  )}
+                </div>
+                {result.athletes && result.athletes.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {result.athletes.map((athlete, index) => (
+                      <div key={athlete.id || index} className="flex items-center justify-between text-sm bg-slate-800/50 rounded px-3 py-2">
+                        <span className="text-slate-300">
+                          <span className="text-greyhound-green font-bold mr-2">{index + 1}.</span>
+                          {athlete.name}
+                        </span>
+                        <span className="text-greyhound-gold font-semibold">{athlete.time}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="p-4 border-t border-slate-700">
+          <Button onClick={onClose} className="w-full">Close</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Results() {
   const [selectedResult, setSelectedResult] = useState(null)
+  const [showAllResults, setShowAllResults] = useState(false)
   const { data: results, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['results'],
     queryFn: fetchResults,
@@ -264,7 +333,10 @@ function Results() {
           </h2>
           <p className="text-slate-300 mt-1">Season performance</p>
         </div>
-        <button className="text-greyhound-green font-semibold hover:underline focus:outline-none focus:ring-2 focus:ring-greyhound-green focus:ring-offset-2 focus:ring-offset-slate-900 rounded px-2 py-1">
+        <button
+          onClick={() => setShowAllResults(true)}
+          className="text-greyhound-green font-semibold hover:underline focus:outline-none focus:ring-2 focus:ring-greyhound-green focus:ring-offset-2 focus:ring-offset-slate-900 rounded px-2 py-1"
+        >
           View All Results →
         </button>
       </div>
@@ -292,6 +364,14 @@ function Results() {
         <ResultsModal
           result={selectedResult}
           onClose={() => setSelectedResult(null)}
+        />
+      )}
+
+      {/* All Results Modal */}
+      {showAllResults && (
+        <AllResultsModal
+          results={results}
+          onClose={() => setShowAllResults(false)}
         />
       )}
     </section>

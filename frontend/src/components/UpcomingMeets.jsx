@@ -283,8 +283,92 @@ function MeetCard({ meet, onViewDetails }) {
   )
 }
 
+function FullScheduleModal({ meets, onClose, onSelectMeet }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        className="relative bg-slate-800 border border-slate-700 rounded-xl max-w-3xl w-full max-h-[85vh] overflow-hidden shadow-2xl"
+        role="dialog"
+        aria-labelledby="schedule-title"
+        aria-modal="true"
+      >
+        <div className="flex items-start justify-between p-6 border-b border-slate-700">
+          <div>
+            <h2 id="schedule-title" className="text-2xl font-bold text-white">Full Season Schedule</h2>
+            <p className="text-slate-300 mt-1">{meets.length} meets scheduled</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white transition-colors"
+            aria-label="Close modal"
+          >
+            <CloseIcon />
+          </button>
+        </div>
+        <div className="p-6 overflow-y-auto max-h-[65vh]">
+          <div className="space-y-3">
+            {meets.map((meet) => {
+              const date = new Date(meet.date)
+              const formattedDate = date.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
+              return (
+                <button
+                  key={meet.id}
+                  onClick={() => { onClose(); onSelectMeet(meet); }}
+                  className="w-full bg-slate-700/50 hover:bg-slate-700 rounded-lg p-4 border border-slate-600 hover:border-greyhound-green transition-colors text-left"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0 w-14 h-14 bg-greyhound-green rounded-lg flex flex-col items-center justify-center">
+                      <span className="text-xs font-bold text-white/80">
+                        {date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
+                      </span>
+                      <span className="text-xl font-extrabold text-white">{date.getDate()}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-white">{meet.name}</h3>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-400 mt-1">
+                        <span>{formattedDate}</span>
+                        {meet.time && (
+                          <span className="text-greyhound-gold flex items-center gap-1">
+                            <ClockIcon />
+                            {formatTime(meet.time)}
+                          </span>
+                        )}
+                        {meet.location && (
+                          <span className="flex items-center gap-1">
+                            <LocationIcon />
+                            {meet.location}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-greyhound-green text-sm">Details →</span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div className="p-4 border-t border-slate-700">
+          <Button onClick={onClose} className="w-full">Close</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function UpcomingMeets() {
   const [selectedMeet, setSelectedMeet] = useState(null)
+  const [showFullSchedule, setShowFullSchedule] = useState(false)
 
   const { data: meets, isLoading, isError, error } = useQuery({
     queryKey: ['meets'],
@@ -329,7 +413,10 @@ function UpcomingMeets() {
           </h2>
           <p className="text-slate-300 mt-1">Mark your calendar</p>
         </div>
-        <button className="text-greyhound-green font-semibold hover:underline focus:outline-none focus:ring-2 focus:ring-greyhound-green focus:ring-offset-2 focus:ring-offset-slate-900 rounded px-2 py-1">
+        <button
+          onClick={() => setShowFullSchedule(true)}
+          className="text-greyhound-green font-semibold hover:underline focus:outline-none focus:ring-2 focus:ring-greyhound-green focus:ring-offset-2 focus:ring-offset-slate-900 rounded px-2 py-1"
+        >
           View Full Schedule →
         </button>
       </div>
@@ -352,6 +439,15 @@ function UpcomingMeets() {
         <MeetDetailsModal
           meet={selectedMeet}
           onClose={() => setSelectedMeet(null)}
+        />
+      )}
+
+      {/* Full Schedule Modal */}
+      {showFullSchedule && (
+        <FullScheduleModal
+          meets={meets}
+          onClose={() => setShowFullSchedule(false)}
+          onSelectMeet={setSelectedMeet}
         />
       )}
     </section>
