@@ -11,33 +11,134 @@ import (
 	"time"
 )
 
-const createResult = `-- name: CreateResult :execresult
-INSERT INTO results (athlete_id, meet_id, time, place)
+const createAthlete = `-- name: CreateAthlete :execresult
+INSERT INTO athletes (name, grade, personal_record, events)
 VALUES (?, ?, ?, ?)
 `
 
+type CreateAthleteParams struct {
+	Name           string
+	Grade          int32
+	PersonalRecord sql.NullString
+	Events         sql.NullString
+}
+
+func (q *Queries) CreateAthlete(ctx context.Context, arg CreateAthleteParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, createAthlete,
+		arg.Name,
+		arg.Grade,
+		arg.PersonalRecord,
+		arg.Events,
+	)
+}
+
+const createEventType = `-- name: CreateEventType :execresult
+INSERT INTO event_types (name, distance, description)
+VALUES (?, ?, ?)
+`
+
+type CreateEventTypeParams struct {
+	Name        string
+	Distance    sql.NullString
+	Description sql.NullString
+}
+
+func (q *Queries) CreateEventType(ctx context.Context, arg CreateEventTypeParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, createEventType, arg.Name, arg.Distance, arg.Description)
+}
+
+const createMeet = `-- name: CreateMeet :execresult
+INSERT INTO meets (name, date, time, location, description)
+VALUES (?, ?, ?, ?, ?)
+`
+
+type CreateMeetParams struct {
+	Name        string
+	Date        time.Time
+	Time        sql.NullString
+	Location    sql.NullString
+	Description sql.NullString
+}
+
+func (q *Queries) CreateMeet(ctx context.Context, arg CreateMeetParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, createMeet,
+		arg.Name,
+		arg.Date,
+		arg.Time,
+		arg.Location,
+		arg.Description,
+	)
+}
+
+const createResult = `-- name: CreateResult :execresult
+INSERT INTO results (athlete_id, meet_id, event_type_id, time, place)
+VALUES (?, ?, ?, ?, ?)
+`
+
 type CreateResultParams struct {
-	AthleteID int32
-	MeetID    int32
-	Time      string
-	Place     sql.NullInt32
+	AthleteID   int32
+	MeetID      int32
+	EventTypeID sql.NullInt32
+	Time        string
+	Place       sql.NullInt32
 }
 
 func (q *Queries) CreateResult(ctx context.Context, arg CreateResultParams) (sql.Result, error) {
 	return q.db.ExecContext(ctx, createResult,
 		arg.AthleteID,
 		arg.MeetID,
+		arg.EventTypeID,
 		arg.Time,
 		arg.Place,
 	)
 }
 
+const deleteAthlete = `-- name: DeleteAthlete :exec
+DELETE FROM athletes WHERE id = ?
+`
+
+func (q *Queries) DeleteAthlete(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deleteAthlete, id)
+	return err
+}
+
+const deleteEventType = `-- name: DeleteEventType :exec
+DELETE FROM event_types WHERE id = ?
+`
+
+func (q *Queries) DeleteEventType(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deleteEventType, id)
+	return err
+}
+
+const deleteMeet = `-- name: DeleteMeet :exec
+DELETE FROM meets WHERE id = ?
+`
+
+func (q *Queries) DeleteMeet(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deleteMeet, id)
+	return err
+}
+
+const deleteResult = `-- name: DeleteResult :exec
+DELETE FROM results WHERE id = ?
+`
+
+func (q *Queries) DeleteResult(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deleteResult, id)
+	return err
+}
+
 const getAllAthletes = `-- name: GetAllAthletes :many
+
 SELECT id, name, grade, personal_record, events, created_at, updated_at
 FROM athletes
 ORDER BY name
 `
 
+// =====================
+// ATHLETES
+// =====================
 func (q *Queries) GetAllAthletes(ctx context.Context) ([]Athlete, error) {
 	rows, err := q.db.QueryContext(ctx, getAllAthletes)
 	if err != nil {
@@ -69,12 +170,56 @@ func (q *Queries) GetAllAthletes(ctx context.Context) ([]Athlete, error) {
 	return items, nil
 }
 
+const getAllEventTypes = `-- name: GetAllEventTypes :many
+
+SELECT id, name, distance, description, created_at, updated_at
+FROM event_types
+ORDER BY name
+`
+
+// =====================
+// EVENT TYPES
+// =====================
+func (q *Queries) GetAllEventTypes(ctx context.Context) ([]EventType, error) {
+	rows, err := q.db.QueryContext(ctx, getAllEventTypes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []EventType
+	for rows.Next() {
+		var i EventType
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Distance,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAllMeets = `-- name: GetAllMeets :many
-SELECT id, name, date, location, description, created_at, updated_at
+
+SELECT id, name, date, time, location, description, created_at, updated_at
 FROM meets
 ORDER BY date
 `
 
+// =====================
+// MEETS
+// =====================
 func (q *Queries) GetAllMeets(ctx context.Context) ([]Meet, error) {
 	rows, err := q.db.QueryContext(ctx, getAllMeets)
 	if err != nil {
@@ -88,10 +233,80 @@ func (q *Queries) GetAllMeets(ctx context.Context) ([]Meet, error) {
 			&i.ID,
 			&i.Name,
 			&i.Date,
+			&i.Time,
 			&i.Location,
 			&i.Description,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllResults = `-- name: GetAllResults :many
+SELECT
+    r.id,
+    r.athlete_id,
+    r.meet_id,
+    r.event_type_id,
+    r.time,
+    r.place,
+    r.created_at,
+    a.name as athlete_name,
+    m.name as meet_name,
+    m.date as meet_date,
+    et.name as event_name
+FROM results r
+JOIN athletes a ON r.athlete_id = a.id
+JOIN meets m ON r.meet_id = m.id
+LEFT JOIN event_types et ON r.event_type_id = et.id
+ORDER BY m.date DESC, r.place
+`
+
+type GetAllResultsRow struct {
+	ID          int32
+	AthleteID   int32
+	MeetID      int32
+	EventTypeID sql.NullInt32
+	Time        string
+	Place       sql.NullInt32
+	CreatedAt   sql.NullTime
+	AthleteName string
+	MeetName    string
+	MeetDate    time.Time
+	EventName   sql.NullString
+}
+
+func (q *Queries) GetAllResults(ctx context.Context) ([]GetAllResultsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllResults)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllResultsRow
+	for rows.Next() {
+		var i GetAllResultsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AthleteID,
+			&i.MeetID,
+			&i.EventTypeID,
+			&i.Time,
+			&i.Place,
+			&i.CreatedAt,
+			&i.AthleteName,
+			&i.MeetName,
+			&i.MeetDate,
+			&i.EventName,
 		); err != nil {
 			return nil, err
 		}
@@ -132,28 +347,31 @@ SELECT
     r.id,
     r.athlete_id,
     r.meet_id,
-    r.event,
+    r.event_type_id,
     r.time,
     r.place,
     r.created_at,
     m.name as meet_name,
-    m.date as meet_date
+    m.date as meet_date,
+    et.name as event_name
 FROM results r
 JOIN meets m ON r.meet_id = m.id
+LEFT JOIN event_types et ON r.event_type_id = et.id
 WHERE r.athlete_id = ?
 ORDER BY m.date DESC
 `
 
 type GetAthleteResultsRow struct {
-	ID        int32
-	AthleteID int32
-	MeetID    int32
-	Event     sql.NullString
-	Time      string
-	Place     sql.NullInt32
-	CreatedAt sql.NullTime
-	MeetName  string
-	MeetDate  time.Time
+	ID          int32
+	AthleteID   int32
+	MeetID      int32
+	EventTypeID sql.NullInt32
+	Time        string
+	Place       sql.NullInt32
+	CreatedAt   sql.NullTime
+	MeetName    string
+	MeetDate    time.Time
+	EventName   sql.NullString
 }
 
 func (q *Queries) GetAthleteResults(ctx context.Context, athleteID int32) ([]GetAthleteResultsRow, error) {
@@ -169,12 +387,13 @@ func (q *Queries) GetAthleteResults(ctx context.Context, athleteID int32) ([]Get
 			&i.ID,
 			&i.AthleteID,
 			&i.MeetID,
-			&i.Event,
+			&i.EventTypeID,
 			&i.Time,
 			&i.Place,
 			&i.CreatedAt,
 			&i.MeetName,
 			&i.MeetDate,
+			&i.EventName,
 		); err != nil {
 			return nil, err
 		}
@@ -189,18 +408,63 @@ func (q *Queries) GetAthleteResults(ctx context.Context, athleteID int32) ([]Get
 	return items, nil
 }
 
+const getEventTypeByID = `-- name: GetEventTypeByID :one
+SELECT id, name, distance, description, created_at, updated_at
+FROM event_types
+WHERE id = ?
+`
+
+func (q *Queries) GetEventTypeByID(ctx context.Context, id int32) (EventType, error) {
+	row := q.db.QueryRowContext(ctx, getEventTypeByID, id)
+	var i EventType
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Distance,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getMeetByID = `-- name: GetMeetByID :one
+SELECT id, name, date, time, location, description, created_at, updated_at
+FROM meets
+WHERE id = ?
+`
+
+func (q *Queries) GetMeetByID(ctx context.Context, id int32) (Meet, error) {
+	row := q.db.QueryRowContext(ctx, getMeetByID, id)
+	var i Meet
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Date,
+		&i.Time,
+		&i.Location,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getMeetResults = `-- name: GetMeetResults :many
+
 SELECT
     r.id,
     r.athlete_id,
     r.meet_id,
-    r.event,
+    r.event_type_id,
     r.time,
     r.place,
     r.created_at,
-    a.name as athlete_name
+    a.name as athlete_name,
+    et.name as event_name
 FROM results r
 JOIN athletes a ON r.athlete_id = a.id
+LEFT JOIN event_types et ON r.event_type_id = et.id
 WHERE r.meet_id = ?
 ORDER BY r.place
 `
@@ -209,13 +473,17 @@ type GetMeetResultsRow struct {
 	ID          int32
 	AthleteID   int32
 	MeetID      int32
-	Event       sql.NullString
+	EventTypeID sql.NullInt32
 	Time        string
 	Place       sql.NullInt32
 	CreatedAt   sql.NullTime
 	AthleteName string
+	EventName   sql.NullString
 }
 
+// =====================
+// RESULTS
+// =====================
 func (q *Queries) GetMeetResults(ctx context.Context, meetID int32) ([]GetMeetResultsRow, error) {
 	rows, err := q.db.QueryContext(ctx, getMeetResults, meetID)
 	if err != nil {
@@ -229,11 +497,12 @@ func (q *Queries) GetMeetResults(ctx context.Context, meetID int32) ([]GetMeetRe
 			&i.ID,
 			&i.AthleteID,
 			&i.MeetID,
-			&i.Event,
+			&i.EventTypeID,
 			&i.Time,
 			&i.Place,
 			&i.CreatedAt,
 			&i.AthleteName,
+			&i.EventName,
 		); err != nil {
 			return nil, err
 		}
@@ -248,6 +517,56 @@ func (q *Queries) GetMeetResults(ctx context.Context, meetID int32) ([]GetMeetRe
 	return items, nil
 }
 
+const getResultByID = `-- name: GetResultByID :one
+SELECT
+    r.id,
+    r.athlete_id,
+    r.meet_id,
+    r.event_type_id,
+    r.time,
+    r.place,
+    r.created_at,
+    a.name as athlete_name,
+    m.name as meet_name,
+    et.name as event_name
+FROM results r
+JOIN athletes a ON r.athlete_id = a.id
+JOIN meets m ON r.meet_id = m.id
+LEFT JOIN event_types et ON r.event_type_id = et.id
+WHERE r.id = ?
+`
+
+type GetResultByIDRow struct {
+	ID          int32
+	AthleteID   int32
+	MeetID      int32
+	EventTypeID sql.NullInt32
+	Time        string
+	Place       sql.NullInt32
+	CreatedAt   sql.NullTime
+	AthleteName string
+	MeetName    string
+	EventName   sql.NullString
+}
+
+func (q *Queries) GetResultByID(ctx context.Context, id int32) (GetResultByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getResultByID, id)
+	var i GetResultByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.AthleteID,
+		&i.MeetID,
+		&i.EventTypeID,
+		&i.Time,
+		&i.Place,
+		&i.CreatedAt,
+		&i.AthleteName,
+		&i.MeetName,
+		&i.EventName,
+	)
+	return i, err
+}
+
 const getTopTenFastestTimes = `-- name: GetTopTenFastestTimes :many
 SELECT
     r.id,
@@ -258,10 +577,12 @@ SELECT
     a.grade as athlete_grade,
     m.id as meet_id,
     m.name as meet_name,
-    m.date as meet_date
+    m.date as meet_date,
+    et.name as event_name
 FROM results r
 JOIN athletes a ON r.athlete_id = a.id
 JOIN meets m ON r.meet_id = m.id
+LEFT JOIN event_types et ON r.event_type_id = et.id
 ORDER BY r.time ASC
 LIMIT 10
 `
@@ -276,6 +597,7 @@ type GetTopTenFastestTimesRow struct {
 	MeetID       int32
 	MeetName     string
 	MeetDate     time.Time
+	EventName    sql.NullString
 }
 
 func (q *Queries) GetTopTenFastestTimes(ctx context.Context) ([]GetTopTenFastestTimesRow, error) {
@@ -297,6 +619,7 @@ func (q *Queries) GetTopTenFastestTimes(ctx context.Context) ([]GetTopTenFastest
 			&i.MeetID,
 			&i.MeetName,
 			&i.MeetDate,
+			&i.EventName,
 		); err != nil {
 			return nil, err
 		}
@@ -309,4 +632,106 @@ func (q *Queries) GetTopTenFastestTimes(ctx context.Context) ([]GetTopTenFastest
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateAthlete = `-- name: UpdateAthlete :exec
+UPDATE athletes
+SET name = ?, grade = ?, personal_record = ?, events = ?
+WHERE id = ?
+`
+
+type UpdateAthleteParams struct {
+	Name           string
+	Grade          int32
+	PersonalRecord sql.NullString
+	Events         sql.NullString
+	ID             int32
+}
+
+func (q *Queries) UpdateAthlete(ctx context.Context, arg UpdateAthleteParams) error {
+	_, err := q.db.ExecContext(ctx, updateAthlete,
+		arg.Name,
+		arg.Grade,
+		arg.PersonalRecord,
+		arg.Events,
+		arg.ID,
+	)
+	return err
+}
+
+const updateEventType = `-- name: UpdateEventType :exec
+UPDATE event_types
+SET name = ?, distance = ?, description = ?
+WHERE id = ?
+`
+
+type UpdateEventTypeParams struct {
+	Name        string
+	Distance    sql.NullString
+	Description sql.NullString
+	ID          int32
+}
+
+func (q *Queries) UpdateEventType(ctx context.Context, arg UpdateEventTypeParams) error {
+	_, err := q.db.ExecContext(ctx, updateEventType,
+		arg.Name,
+		arg.Distance,
+		arg.Description,
+		arg.ID,
+	)
+	return err
+}
+
+const updateMeet = `-- name: UpdateMeet :exec
+UPDATE meets
+SET name = ?, date = ?, time = ?, location = ?, description = ?
+WHERE id = ?
+`
+
+type UpdateMeetParams struct {
+	Name        string
+	Date        time.Time
+	Time        sql.NullString
+	Location    sql.NullString
+	Description sql.NullString
+	ID          int32
+}
+
+func (q *Queries) UpdateMeet(ctx context.Context, arg UpdateMeetParams) error {
+	_, err := q.db.ExecContext(ctx, updateMeet,
+		arg.Name,
+		arg.Date,
+		arg.Time,
+		arg.Location,
+		arg.Description,
+		arg.ID,
+	)
+	return err
+}
+
+const updateResult = `-- name: UpdateResult :exec
+UPDATE results
+SET athlete_id = ?, meet_id = ?, event_type_id = ?, time = ?, place = ?
+WHERE id = ?
+`
+
+type UpdateResultParams struct {
+	AthleteID   int32
+	MeetID      int32
+	EventTypeID sql.NullInt32
+	Time        string
+	Place       sql.NullInt32
+	ID          int32
+}
+
+func (q *Queries) UpdateResult(ctx context.Context, arg UpdateResultParams) error {
+	_, err := q.db.ExecContext(ctx, updateResult,
+		arg.AthleteID,
+		arg.MeetID,
+		arg.EventTypeID,
+		arg.Time,
+		arg.Place,
+		arg.ID,
+	)
+	return err
 }

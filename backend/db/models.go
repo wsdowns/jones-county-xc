@@ -19,10 +19,20 @@ type Athlete struct {
 	UpdatedAt      sql.NullTime
 }
 
+type EventType struct {
+	ID          int32
+	Name        string
+	Distance    sql.NullString
+	Description sql.NullString
+	CreatedAt   sql.NullTime
+	UpdatedAt   sql.NullTime
+}
+
 type Meet struct {
 	ID          int32
 	Name        string
 	Date        time.Time
+	Time        sql.NullString
 	Location    sql.NullString
 	Description sql.NullString
 	CreatedAt   sql.NullTime
@@ -30,11 +40,11 @@ type Meet struct {
 }
 
 type Result struct {
-	ID        int32
-	AthleteID int32
-	MeetID    int32
-	Event     sql.NullString
-	Time      string
-	Place     sql.NullInt32
-	CreatedAt sql.NullTime
+	ID          int32
+	AthleteID   int32
+	MeetID      int32
+	EventTypeID sql.NullInt32
+	Time        string
+	Place       sql.NullInt32
+	CreatedAt   sql.NullTime
 }

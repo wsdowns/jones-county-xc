@@ -52,12 +52,37 @@ function LocationIcon() {
   )
 }
 
+function ClockIcon() {
+  return (
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  )
+}
+
 function CloseIcon() {
   return (
     <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
     </svg>
   )
+}
+
+function formatTime(timeStr) {
+  if (!timeStr) return ''
+  const [hours, minutes] = timeStr.split(':')
+  const hour = parseInt(hours, 10)
+  const ampm = hour >= 12 ? 'PM' : 'AM'
+  const hour12 = hour % 12 || 12
+  return `${hour12}:${minutes} ${ampm}`
 }
 
 function MeetDetailsModal({ meet, onClose }) {
@@ -94,7 +119,10 @@ function MeetDetailsModal({ meet, onClose }) {
         <div className="flex items-start justify-between p-6 border-b border-slate-700">
           <div>
             <h2 id="modal-title" className="text-2xl font-bold text-white">{meet.name}</h2>
-            <p className="text-slate-300 mt-1">{fullDate}</p>
+            <p className="text-slate-300 mt-1">
+              {fullDate}
+              {meet.time && <span className="text-greyhound-gold ml-2">@ {formatTime(meet.time)}</span>}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -229,6 +257,12 @@ function MeetCard({ meet, onViewDetails }) {
             <LocationIcon />
             <span>{meet.location}</span>
           </div>
+          {meet.time && (
+            <div className="flex items-center gap-1 text-sm text-greyhound-gold mt-1">
+              <ClockIcon />
+              <span>{formatTime(meet.time)}</span>
+            </div>
+          )}
           <time dateTime={meet.date} className="sr-only">
             {fullDate}
           </time>
