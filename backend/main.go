@@ -13,6 +13,7 @@ import (
 )
 
 var queries *db.Queries
+var dbConn *sql.DB
 
 func main() {
 	// Connect to MySQL
@@ -30,15 +31,18 @@ func main() {
 
 	// Initialize queries
 	queries = db.New(conn)
+	dbConn = conn
 
 	// Setup router
 	r := gin.Default()
 
 	r.GET("/health", healthHandler)
 	r.GET("/api/athletes", getAthletesHandler)
+	r.POST("/api/athletes", createAthleteHandler)
 	r.GET("/api/athletes/:id", getAthleteByIDHandler)
 	r.GET("/api/meets", getMeetsHandler)
 	r.GET("/api/meets/:id/results", getResultsByMeetHandler)
+	r.GET("/api/results", getResultsHandler)
 	r.POST("/api/results", createResultHandler)
 	r.GET("/api/results/top10", getTopTenFastestHandler)
 
@@ -116,6 +120,64 @@ func getMeetsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+func getResultsHandler(c *gin.Context) {
+	// Get all meets
+	meets, err := queries.GetAllMeets(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Build response with results for each meet
+	response := make([]gin.H, 0)
+	for _, m := range meets {
+		// Get results for this meet
+		results, err := queries.GetMeetResults(c.Request.Context(), m.ID)
+		if err != nil {
+			continue // Skip meets with no results
+		}
+		if len(results) == 0 {
+			continue
+		}
+
+		// Build athletes array
+		athletes := make([]gin.H, len(results))
+		for i, r := range results {
+			athletes[i] = gin.H{
+				"id":   r.AthleteID,
+				"name": r.AthleteName,
+				"time": r.Time,
+			}
+		}
+
+		// Determine team placement (simplified - just use best individual place)
+		placement := ""
+		if len(results) > 0 && results[0].Place.Valid {
+			place := results[0].Place.Int32
+			switch place {
+			case 1:
+				placement = "1st"
+			case 2:
+				placement = "2nd"
+			case 3:
+				placement = "3rd"
+			default:
+				placement = strconv.Itoa(int(place)) + "th"
+			}
+		}
+
+		response = append(response, gin.H{
+			"id":        m.ID,
+			"meetName":  m.Name,
+			"date":      m.Date.Format("January 2, 2006"),
+			"placement": placement,
+			"athletes":  athletes,
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 func getResultsByMeetHandler(c *gin.Context) {
 	meetID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -141,6 +203,38 @@ func getResultsByMeetHandler(c *gin.Context) {
 		}
 	}
 	c.JSON(http.StatusOK, response)
+}
+
+type CreateAthleteRequest struct {
+	Name           string `json:"name" binding:"required"`
+	Grade          int32  `json:"grade" binding:"required"`
+	PersonalRecord string `json:"personalRecord"`
+	Events         string `json:"events"`
+}
+
+func createAthleteHandler(c *gin.Context) {
+	var req CreateAthleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := dbConn.ExecContext(c.Request.Context(),
+		"INSERT INTO athletes (name, grade, personal_record, events) VALUES (?, ?, ?, ?)",
+		req.Name, req.Grade, req.PersonalRecord, req.Events)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	id, _ := result.LastInsertId()
+	c.JSON(http.StatusCreated, gin.H{
+		"id":             id,
+		"name":           req.Name,
+		"grade":          req.Grade,
+		"personalRecord": req.PersonalRecord,
+		"events":         req.Events,
+	})
 }
 
 type CreateResultRequest struct {

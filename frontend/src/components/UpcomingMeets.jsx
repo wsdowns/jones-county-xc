@@ -1,0 +1,169 @@
+const placeholderMeets = [
+  {
+    id: 1,
+    name: 'Jones County Invitational',
+    date: '2026-02-21',
+    location: 'Gray, GA',
+  },
+  {
+    id: 2,
+    name: 'Region 4-AAAAA Championship',
+    date: '2026-03-07',
+    location: 'Warner Robins, GA',
+  },
+  {
+    id: 3,
+    name: 'Peach State Classic',
+    date: '2026-03-14',
+    location: 'Macon, GA',
+  },
+  {
+    id: 4,
+    name: 'State Qualifier',
+    date: '2026-03-28',
+    location: 'Carrollton, GA',
+  },
+]
+
+function CalendarIcon() {
+  return (
+    <svg
+      className="w-5 h-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  )
+}
+
+function LocationIcon() {
+  return (
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  )
+}
+
+function MeetCard({ meet }) {
+  const date = new Date(meet.date)
+  const month = date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()
+  const day = date.getDate()
+  const fullDate = date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+
+  function handleClick() {
+    console.log('Clicked meet:', meet.name)
+  }
+
+  function handleKeyDown(event) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      handleClick()
+    }
+  }
+
+  return (
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      aria-labelledby={`meet-${meet.id}-name`}
+      className="group bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-5 hover:border-greyhound-green hover:shadow-xl hover:shadow-greyhound-green/10 hover:scale-[1.02] hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-greyhound-green focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-300 cursor-pointer"
+    >
+      <div className="flex gap-4">
+        {/* Date block */}
+        <div
+          className="flex-shrink-0 w-16 h-16 bg-greyhound-green rounded-lg flex flex-col items-center justify-center"
+          aria-hidden="true"
+        >
+          <span className="text-xs font-bold text-white/80">{month}</span>
+          <span className="text-2xl font-extrabold text-white">{day}</span>
+        </div>
+
+        {/* Meet info */}
+        <div className="flex-1 min-w-0">
+          <h3
+            id={`meet-${meet.id}-name`}
+            className="text-lg font-bold text-white group-hover:text-greyhound-green transition-colors truncate"
+          >
+            {meet.name}
+          </h3>
+          <div className="flex items-center gap-1 text-sm text-slate-300 mt-1">
+            <LocationIcon />
+            <span>{meet.location}</span>
+          </div>
+          <time dateTime={meet.date} className="sr-only">
+            {fullDate}
+          </time>
+        </div>
+      </div>
+
+      {/* Action hint */}
+      <div className="mt-4 pt-4 border-t border-slate-700 flex items-center justify-between">
+        <span className="text-xs text-slate-300 uppercase tracking-wide">Cross Country</span>
+        <span
+          className="text-greyhound-green text-sm font-medium opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity"
+          aria-hidden="true"
+        >
+          View Details →
+        </span>
+      </div>
+    </article>
+  )
+}
+
+function UpcomingMeets() {
+  const meets = placeholderMeets
+
+  return (
+    <section aria-labelledby="meets-heading" className="w-full">
+      {/* Section Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h2 id="meets-heading" className="text-3xl font-extrabold text-white tracking-tight">
+            Upcoming Meets
+          </h2>
+          <p className="text-slate-300 mt-1">Mark your calendar</p>
+        </div>
+        <button className="text-greyhound-green font-semibold hover:underline focus:outline-none focus:ring-2 focus:ring-greyhound-green focus:ring-offset-2 focus:ring-offset-slate-900 rounded px-2 py-1">
+          View Full Schedule →
+        </button>
+      </div>
+
+      {/* Cards Grid */}
+      <div
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        role="list"
+        aria-label="Upcoming meets"
+      >
+        {meets.map((meet) => (
+          <div role="listitem" key={meet.id}>
+            <MeetCard meet={meet} />
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+export default UpcomingMeets
