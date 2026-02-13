@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Button from './ui/Button'
 
@@ -86,6 +86,9 @@ function formatTime(timeStr) {
 }
 
 function MeetDetailsModal({ meet, onClose }) {
+  const modalRef = useRef(null)
+  const closeButtonRef = useRef(null)
+
   const { data: results, isLoading, isError } = useQuery({
     queryKey: ['meetResults', meet.id],
     queryFn: () => fetchMeetResults(meet.id),
@@ -99,6 +102,45 @@ function MeetDetailsModal({ meet, onClose }) {
     day: 'numeric',
   })
 
+  // Focus close button on mount
+  useEffect(() => {
+    closeButtonRef.current?.focus()
+  }, [])
+
+  // Handle Escape key
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  // Focus trap
+  useEffect(() => {
+    function handleTabKey(e) {
+      if (e.key !== 'Tab' || !modalRef.current) return
+
+      const focusable = modalRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', handleTabKey)
+    return () => document.removeEventListener('keydown', handleTabKey)
+  }, [])
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
@@ -110,6 +152,7 @@ function MeetDetailsModal({ meet, onClose }) {
 
       {/* Modal */}
       <div
+        ref={modalRef}
         className="relative bg-slate-800 border border-slate-700 rounded-xl max-w-lg w-full max-h-[80vh] overflow-hidden shadow-2xl"
         role="dialog"
         aria-labelledby="modal-title"
@@ -125,8 +168,9 @@ function MeetDetailsModal({ meet, onClose }) {
             </p>
           </div>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
+            className="text-slate-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-greyhound-green rounded"
             aria-label="Close modal"
           >
             <CloseIcon />
@@ -204,7 +248,7 @@ function MeetDetailsModal({ meet, onClose }) {
   )
 }
 
-function MeetCard({ meet, onViewDetails }) {
+function MeetCard({ meet, onViewDetails, index, totalCount, gridRef }) {
   const date = new Date(meet.date)
   const month = date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()
   const day = date.getDate()
@@ -223,11 +267,37 @@ function MeetCard({ meet, onViewDetails }) {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
       handleClick()
+      return
+    }
+
+    const cards = gridRef?.current?.querySelectorAll('[data-card]')
+    if (!cards) return
+
+    let nextIndex = index
+    const columns = window.innerWidth >= 1024 ? 3 : window.innerWidth >= 768 ? 2 : 1
+
+    if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      nextIndex = Math.min(index + 1, totalCount - 1)
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      nextIndex = Math.max(index - 1, 0)
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      nextIndex = Math.min(index + columns, totalCount - 1)
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      nextIndex = Math.max(index - columns, 0)
+    }
+
+    if (nextIndex !== index) {
+      cards[nextIndex]?.focus()
     }
   }
 
   return (
     <article
+      data-card
       role="button"
       tabIndex={0}
       onClick={handleClick}
@@ -284,6 +354,48 @@ function MeetCard({ meet, onViewDetails }) {
 }
 
 function FullScheduleModal({ meets, onClose, onSelectMeet }) {
+  const modalRef = useRef(null)
+  const closeButtonRef = useRef(null)
+
+  // Focus close button on mount
+  useEffect(() => {
+    closeButtonRef.current?.focus()
+  }, [])
+
+  // Handle Escape key
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  // Focus trap
+  useEffect(() => {
+    function handleTabKey(e) {
+      if (e.key !== 'Tab' || !modalRef.current) return
+
+      const focusable = modalRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', handleTabKey)
+    return () => document.removeEventListener('keydown', handleTabKey)
+  }, [])
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
@@ -292,6 +404,7 @@ function FullScheduleModal({ meets, onClose, onSelectMeet }) {
         aria-hidden="true"
       />
       <div
+        ref={modalRef}
         className="relative bg-slate-800 border border-slate-700 rounded-xl max-w-3xl w-full max-h-[85vh] overflow-hidden shadow-2xl"
         role="dialog"
         aria-labelledby="schedule-title"
@@ -303,8 +416,9 @@ function FullScheduleModal({ meets, onClose, onSelectMeet }) {
             <p className="text-slate-300 mt-1">{meets.length} meets scheduled</p>
           </div>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
+            className="text-slate-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-greyhound-green rounded"
             aria-label="Close modal"
           >
             <CloseIcon />
@@ -369,6 +483,7 @@ function FullScheduleModal({ meets, onClose, onSelectMeet }) {
 function UpcomingMeets() {
   const [selectedMeet, setSelectedMeet] = useState(null)
   const [showFullSchedule, setShowFullSchedule] = useState(false)
+  const gridRef = useRef(null)
 
   const { data: meets, isLoading, isError, error } = useQuery({
     queryKey: ['meets'],
@@ -423,13 +538,20 @@ function UpcomingMeets() {
 
       {/* Cards Grid */}
       <div
+        ref={gridRef}
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         role="list"
         aria-label="Upcoming meets"
       >
-        {meets.map((meet) => (
+        {meets.map((meet, index) => (
           <div role="listitem" key={meet.id}>
-            <MeetCard meet={meet} onViewDetails={setSelectedMeet} />
+            <MeetCard
+              meet={meet}
+              onViewDetails={setSelectedMeet}
+              index={index}
+              totalCount={meets.length}
+              gridRef={gridRef}
+            />
           </div>
         ))}
       </div>

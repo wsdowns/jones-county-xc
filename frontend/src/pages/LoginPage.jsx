@@ -43,16 +43,16 @@ function LoginPage({ onLogin }) {
             Administration Login
           </h1>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" aria-busy={isLoading}>
             {error && (
-              <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3">
+              <div id="login-error" role="alert" className="bg-red-500/10 border border-red-500/50 rounded-lg p-3">
                 <p className="text-red-400 text-sm">{error}</p>
               </div>
             )}
 
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-1">
-                Username
+                Username <span className="text-red-400" aria-hidden="true">*</span>
               </label>
               <input
                 type="text"
@@ -62,12 +62,14 @@ function LoginPage({ onLogin }) {
                 className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-greyhound-green focus:border-transparent"
                 placeholder="Enter username"
                 required
+                aria-required="true"
+                aria-describedby={error ? 'login-error' : undefined}
               />
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-1">
-                Password
+                Password <span className="text-red-400" aria-hidden="true">*</span>
               </label>
               <input
                 type="password"
@@ -77,6 +79,8 @@ function LoginPage({ onLogin }) {
                 className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-greyhound-green focus:border-transparent"
                 placeholder="Enter password"
                 required
+                aria-required="true"
+                aria-describedby={error ? 'login-error' : undefined}
               />
             </div>
 

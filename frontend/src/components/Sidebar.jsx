@@ -199,7 +199,7 @@ function Sidebar() {
         <nav className="p-4" aria-label="Primary">
           <p id="menu-label" className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 px-3">Menu</p>
           <ul className="space-y-1" role="list" aria-labelledby="menu-label">
-            {navItems.map((item) => {
+            {navItems.map((item, index) => {
               const isActive = location.pathname === item.path
               return (
                 <li key={item.name}>
@@ -207,6 +207,19 @@ function Sidebar() {
                     to={item.path}
                     onClick={() => setIsOpen(false)}
                     aria-current={isActive ? 'page' : undefined}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault()
+                        const nextIndex = (index + 1) % navItems.length
+                        const links = sidebarRef.current?.querySelectorAll('nav a')
+                        links?.[nextIndex]?.focus()
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault()
+                        const prevIndex = (index - 1 + navItems.length) % navItems.length
+                        const links = sidebarRef.current?.querySelectorAll('nav a')
+                        links?.[prevIndex]?.focus()
+                      }
+                    }}
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-greyhound-green focus:ring-inset ${
                       isActive
                         ? 'bg-greyhound-green text-white shadow-lg shadow-greyhound-green/25'

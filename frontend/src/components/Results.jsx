@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Button from './ui/Button'
 
@@ -47,10 +47,52 @@ function CloseIcon() {
 }
 
 function ResultsModal({ result, onClose }) {
+  const modalRef = useRef(null)
+  const closeButtonRef = useRef(null)
+
   const { data: fullResults, isLoading, isError } = useQuery({
     queryKey: ['meetResults', result.id],
     queryFn: () => fetchMeetResults(result.id),
   })
+
+  // Focus close button on mount
+  useEffect(() => {
+    closeButtonRef.current?.focus()
+  }, [])
+
+  // Handle Escape key
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  // Focus trap
+  useEffect(() => {
+    function handleTabKey(e) {
+      if (e.key !== 'Tab' || !modalRef.current) return
+
+      const focusable = modalRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', handleTabKey)
+    return () => document.removeEventListener('keydown', handleTabKey)
+  }, [])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -63,6 +105,7 @@ function ResultsModal({ result, onClose }) {
 
       {/* Modal */}
       <div
+        ref={modalRef}
         className="relative bg-slate-800 border border-slate-700 rounded-xl max-w-lg w-full max-h-[80vh] overflow-hidden shadow-2xl"
         role="dialog"
         aria-labelledby="modal-title"
@@ -75,8 +118,9 @@ function ResultsModal({ result, onClose }) {
             <p className="text-slate-300 mt-1">{result.date}</p>
           </div>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
+            className="text-slate-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-greyhound-green rounded"
             aria-label="Close modal"
           >
             <CloseIcon />
@@ -153,11 +197,44 @@ function ResultsModal({ result, onClose }) {
   )
 }
 
-function ResultCard({ result, onViewDetails }) {
+function ResultCard({ result, onViewDetails, index, totalCount, gridRef }) {
+  function handleKeyDown(e) {
+    const cards = gridRef?.current?.querySelectorAll('[data-card]')
+    if (!cards) return
+
+    let nextIndex = index
+    const columns = window.innerWidth >= 1024 ? 3 : window.innerWidth >= 768 ? 2 : 1
+
+    if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      nextIndex = Math.min(index + 1, totalCount - 1)
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      nextIndex = Math.max(index - 1, 0)
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      nextIndex = Math.min(index + columns, totalCount - 1)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      nextIndex = Math.max(index - columns, 0)
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onViewDetails(result)
+      return
+    }
+
+    if (nextIndex !== index) {
+      cards[nextIndex]?.focus()
+    }
+  }
+
   return (
     <article
+      data-card
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
       aria-labelledby={`result-${result.id}-title`}
-      className="group bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-5 hover:border-greyhound-green hover:shadow-xl hover:shadow-greyhound-green/10 hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300"
+      className="group bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-5 hover:border-greyhound-green hover:shadow-xl hover:shadow-greyhound-green/10 hover:scale-[1.02] hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-greyhound-green focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-300 cursor-pointer"
     >
       <div className="flex items-start justify-between mb-3">
         <div>
@@ -202,6 +279,48 @@ function ResultCard({ result, onViewDetails }) {
 }
 
 function AllResultsModal({ results, onClose }) {
+  const modalRef = useRef(null)
+  const closeButtonRef = useRef(null)
+
+  // Focus close button on mount
+  useEffect(() => {
+    closeButtonRef.current?.focus()
+  }, [])
+
+  // Handle Escape key
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  // Focus trap
+  useEffect(() => {
+    function handleTabKey(e) {
+      if (e.key !== 'Tab' || !modalRef.current) return
+
+      const focusable = modalRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', handleTabKey)
+    return () => document.removeEventListener('keydown', handleTabKey)
+  }, [])
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
@@ -210,6 +329,7 @@ function AllResultsModal({ results, onClose }) {
         aria-hidden="true"
       />
       <div
+        ref={modalRef}
         className="relative bg-slate-800 border border-slate-700 rounded-xl max-w-4xl w-full max-h-[85vh] overflow-hidden shadow-2xl"
         role="dialog"
         aria-labelledby="all-results-title"
@@ -221,8 +341,9 @@ function AllResultsModal({ results, onClose }) {
             <p className="text-slate-300 mt-1">{results.length} meets with results</p>
           </div>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
+            className="text-slate-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-greyhound-green rounded"
             aria-label="Close modal"
           >
             <CloseIcon />
@@ -272,6 +393,7 @@ function AllResultsModal({ results, onClose }) {
 function Results() {
   const [selectedResult, setSelectedResult] = useState(null)
   const [showAllResults, setShowAllResults] = useState(false)
+  const gridRef = useRef(null)
   const { data: results, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['results'],
     queryFn: fetchResults,
@@ -343,6 +465,7 @@ function Results() {
 
       {/* Results Grid */}
       <div
+        ref={gridRef}
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         role="list"
         aria-label="Meet results"
@@ -354,7 +477,13 @@ function Results() {
             className="animate-fade-in-up"
             style={{ animationDelay: `${index * 100}ms` }}
           >
-            <ResultCard result={result} onViewDetails={setSelectedResult} />
+            <ResultCard
+              result={result}
+              onViewDetails={setSelectedResult}
+              index={index}
+              totalCount={results.length}
+              gridRef={gridRef}
+            />
           </div>
         ))}
       </div>
