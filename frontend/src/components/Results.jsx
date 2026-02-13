@@ -233,6 +233,7 @@ function ResultCard({ result, onViewDetails, index, totalCount, gridRef }) {
       data-card
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      onClick={() => onViewDetails(result)}
       aria-labelledby={`result-${result.id}-title`}
       className="group bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-5 hover:border-greyhound-green hover:shadow-xl hover:shadow-greyhound-green/10 hover:scale-[1.02] hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-greyhound-green focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-300 cursor-pointer"
     >
@@ -270,9 +271,9 @@ function ResultCard({ result, onViewDetails, index, totalCount, gridRef }) {
       )}
 
       <div className="mt-4 pt-4 border-t border-slate-700">
-        <Button variant="outline" size="sm" className="w-full" onClick={() => onViewDetails(result)}>
+        <div className="w-full py-2 border-2 border-greyhound-green text-greyhound-green bg-transparent text-center text-xs font-semibold rounded-lg group-hover:bg-greyhound-green group-hover:text-white transition-all duration-200" aria-hidden="true">
           View Full Results
-        </Button>
+        </div>
       </div>
     </article>
   )
